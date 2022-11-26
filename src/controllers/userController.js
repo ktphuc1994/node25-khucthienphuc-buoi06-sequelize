@@ -1,17 +1,16 @@
 const sequelize = require("../models/index");
 const initModels = require("../models/init-models");
+const models = initModels(sequelize);
+
+// import config
 const responseCode = require("../config/responses");
+
+// import middleware
 const tokenControl = require("../middlewares/basicToken");
 
-const model = initModels(sequelize);
+// import local utils
+const { checkDataExist } = require("../utils/utils");
 
-const checkDataExist = async (tableName, idKey, idValue) => {
-  const isDataExist = await model[tableName].findOne({
-    where: { [idKey]: idValue },
-  });
-  if (isDataExist) return true;
-  return false;
-};
 const checkUserRestaurantExist = async (
   response,
   userTable,
@@ -26,11 +25,15 @@ const checkUserRestaurantExist = async (
   const isUserExist = await PromiseCheckUser;
   const isRestaurantExist = await PromistCheckRestaurant;
   if (!isUserExist) {
-    responseCode.fail(response, { user_id: userID }, "User is not existed");
+    responseCode.fail(response, { user_id: userID }, "User does not existed");
     return false;
   }
   if (!isRestaurantExist) {
-    responseCode.fail(response, { res_id: resID }, "Restaurant is not existed");
+    responseCode.fail(
+      response,
+      { res_id: resID },
+      "Restaurant does not existed"
+    );
     return false;
   }
   return true;
@@ -58,7 +61,7 @@ const userController = {
         return;
       }
 
-      const isLiked = await model.like_res.findOne({
+      const isLiked = await models.like_res.findOne({
         where: { user_id, res_id },
       });
       // console.log(isLiked);
@@ -66,7 +69,7 @@ const userController = {
         responseCode.fail(res, "", "Already liked the Restaurant");
         return;
       }
-      const result = await model.like_res.create({
+      const result = await models.like_res.create({
         user_id,
         res_id,
         date_like: Date.now(),
@@ -77,6 +80,7 @@ const userController = {
       responseCode.error(res, "Lỗi Backend");
     }
   },
+
   // --- Unlike (nhà hàng)
   unlikeRes: async (req, res) => {
     try {
@@ -97,7 +101,7 @@ const userController = {
         return;
       }
 
-      const isLiked = await model.like_res.findOne({
+      const isLiked = await models.like_res.findOne({
         where: { user_id, res_id },
       });
       console.log(isLiked);
@@ -106,13 +110,45 @@ const userController = {
         return;
       }
 
-      const result = await model.like_res.destroy({
+      const result = await models.like_res.destroy({
         where: {
           user_id,
           res_id,
         },
       });
       responseCode.success(res, result, "Unliked restaurant successfully");
+    } catch (err) {
+      responseCode.error(res, "Lỗi Backend");
+    }
+  },
+
+  // --- Lấy danh sách nhà hàng được người dùng like
+  getResLikeList: async (req, res) => {
+    try {
+      const { user_id } = req.body;
+
+      const isUserExist = await checkDataExist("user", "user_id", user_id);
+      if (!isUserExist) {
+        responseCode.fail(res, { user_id }, "User does not exist");
+        return;
+      }
+
+      const result = await models.like_res.findAll({
+        include: "resDetail",
+        attributes: ["date_like"],
+        where: { user_id },
+      });
+
+      if (result.length === 0) {
+        responseCode.success(
+          res,
+          result,
+          "User hasn't liked any restaurant yet"
+        );
+        return;
+      }
+
+      responseCode.success(res, result, "Get restaurant list successfully");
     } catch (err) {
       responseCode.error(res, "Lỗi Backend");
     }
