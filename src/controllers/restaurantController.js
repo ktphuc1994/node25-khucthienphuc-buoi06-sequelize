@@ -28,7 +28,7 @@ const restaurantController = {
         include: {
           model: models.user,
           as: "userDetail",
-          attributes: ["user_id", "full_name", "email"],
+          attributes: { exclude: ["pass_word"] },
         },
         attributes: ["date_like"],
         where: { res_id },
