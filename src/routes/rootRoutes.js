@@ -23,7 +23,7 @@ rootRoute.post("/newtoken", (req, res) => {
 });
 
 rootRoute.use("/restaurant", tokenControl.verify, restaurantRoute);
-rootRoute.use("/user", userRoute);
-rootRoute.use("/order", orderRoute);
+rootRoute.use("/user", tokenControl.verify, userRoute);
+rootRoute.use("/order", tokenControl.verify, orderRoute);
 
 module.exports = rootRoute;
