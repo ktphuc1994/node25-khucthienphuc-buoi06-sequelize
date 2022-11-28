@@ -9,7 +9,7 @@ const responseCode = require("../config/responses");
 const tokenControl = require("../middlewares/basicToken");
 
 // import local utils
-const { checkDataExist } = require("../utils/utils");
+const { checkDataExist, checkReqData } = require("../utils/utils");
 
 const checkUserRestaurantExist = async (
   response,
@@ -25,11 +25,15 @@ const checkUserRestaurantExist = async (
   const isUserExist = await PromiseCheckUser;
   const isRestaurantExist = await PromistCheckRestaurant;
   if (!isUserExist) {
-    responseCode.fail(response, { user_id: userID }, "User does not existed");
+    responseCode.notFound(
+      response,
+      { user_id: userID },
+      "User does not existed"
+    );
     return false;
   }
   if (!isRestaurantExist) {
-    responseCode.fail(
+    responseCode.notFound(
       response,
       { res_id: resID },
       "Restaurant does not existed"
@@ -39,12 +43,18 @@ const checkUserRestaurantExist = async (
   return true;
 };
 
-// START XỬ LÍ LIKE NHÀ HÀNG
-// --- Like (nhà hàng)
 const userController = {
+  // START XỬ LÍ LIKE NHÀ HÀNG
+  // --- Like (nhà hàng)
   likeRes: async (req, res) => {
     try {
       let { user_id, res_id } = req.body;
+
+      const isDataGood = checkReqData(res, user_id, res_id);
+      if (!isDataGood) {
+        return;
+      }
+
       user_id = Number(user_id);
       res_id = Number(res_id);
 
@@ -66,7 +76,7 @@ const userController = {
       });
       // console.log(isLiked);
       if (isLiked) {
-        responseCode.fail(res, "", "Already liked the Restaurant");
+        responseCode.conflic(res, "", "Already liked the Restaurant");
         return;
       }
       const result = await models.like_res.create({
@@ -85,6 +95,12 @@ const userController = {
   unlikeRes: async (req, res) => {
     try {
       let { user_id, res_id } = req.body;
+
+      const isDataGood = checkReqData(res, user_id, res_id);
+      if (!isDataGood) {
+        return;
+      }
+
       user_id = Number(user_id);
       res_id = Number(res_id);
 
@@ -104,9 +120,9 @@ const userController = {
       const isLiked = await models.like_res.findOne({
         where: { user_id, res_id },
       });
-      console.log(isLiked);
+      // console.log(isLiked);
       if (!isLiked) {
-        responseCode.fail(res, "", "Not liked the Restaurant yet");
+        responseCode.conflic(res, "", "Not liked the Restaurant yet");
         return;
       }
 
@@ -123,13 +139,18 @@ const userController = {
   },
 
   // --- Lấy danh sách nhà hàng được người dùng like
-  getResLikeList: async (req, res) => {
+  getLikeResList: async (req, res) => {
     try {
       const { user_id } = req.body;
 
+      const isDataGood = checkReqData(res, user_id);
+      if (!isDataGood) {
+        return;
+      }
+
       const isUserExist = await checkDataExist("user", "user_id", user_id);
       if (!isUserExist) {
-        responseCode.fail(res, { user_id }, "User does not exist");
+        responseCode.notFound(res, { user_id }, "User does not exist");
         return;
       }
 
@@ -153,7 +174,101 @@ const userController = {
       responseCode.error(res, "Lỗi Backend");
     }
   },
+  // END XỬ LÍ LIKE NHÀ HÀNG
+
+  // START XỬ LÍ ĐÁNH GIÁ NHÀ HÀNG
+  // --- Thêm đánh giá nhà hàng
+  addResRate: async (req, res) => {
+    try {
+      let { user_id, res_id, amount } = req.body;
+
+      const isDataGood = checkReqData(res, user_id, res_id, amount);
+      if (!isDataGood) {
+        return;
+      }
+
+      user_id = Number(user_id);
+      res_id = Number(res_id);
+      amount = Number(amount);
+
+      const isUserRestaurantExist = await checkUserRestaurantExist(
+        res,
+        "user",
+        "user_id",
+        user_id,
+        "restaurant",
+        "res_id",
+        res_id
+      );
+      if (!isUserRestaurantExist) {
+        return;
+      }
+
+      const isRated = await models.rate_res.findOne({
+        where: { user_id, res_id },
+      });
+      if (isRated) {
+        const result = await models.rate_res.update(
+          { amount, date_rate: Date.now() },
+          { where: { user_id, res_id } }
+        );
+        responseCode.success(
+          res,
+          result,
+          "Updated restaurant rate successfully"
+        );
+        return;
+      }
+
+      const result = await models.rate_res.create({
+        user_id,
+        res_id,
+        amount,
+        date_rate: Date.now(),
+      });
+      responseCode.created(res, result, "Rated restaurant successfully");
+    } catch (err) {
+      responseCode.error(res, "Lỗi Backend");
+    }
+  },
+
+  // --- Lấy danh sách nhà hàng được đánh giá (theo user)
+  getRateResList: async (req, res) => {
+    try {
+      const { user_id } = req.body;
+
+      const isDataGood = checkReqData(res, user_id);
+      if (!isDataGood) {
+        return;
+      }
+
+      const isUserExist = await checkDataExist("user", "user_id", user_id);
+      if (!isUserExist) {
+        responseCode.notFound(res, { user_id }, "User does not exist");
+        return;
+      }
+
+      const result = await models.rate_res.findAll({
+        include: "resDetail",
+        attributes: ["date_rate", "amount"],
+        where: { user_id },
+      });
+
+      if (result.length === 0) {
+        responseCode.success(
+          res,
+          result,
+          "User hasn't rated any restaurant yet"
+        );
+        return;
+      }
+
+      responseCode.success(res, result, "Get restaurant list successfully");
+    } catch (err) {
+      responseCode.error(res, "Lỗi Backend");
+    }
+  },
+  // END XỬ LÍ ĐÁNH GIÁ NHÀ HÀNG
 };
-// END XỬ LÍ LIKE NHÀ HÀNG
 
 module.exports = userController;

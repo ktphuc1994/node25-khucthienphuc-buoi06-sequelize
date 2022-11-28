@@ -1,14 +1,26 @@
 const sequelize = require("../models/index");
 const initModels = require("../models/init-models");
+const models = initModels(sequelize);
 
-const model = initModels(sequelize);
+// import local config
+const responseCode = require("../config/responses");
 
 const checkDataExist = async (tableName, idKey, idValue) => {
-  const isDataExist = await model[tableName].findOne({
+  const isDataExist = await models[tableName].findOne({
     where: { [idKey]: idValue },
   });
   if (isDataExist) return true;
   return false;
 };
 
-module.exports = { checkDataExist };
+const checkReqData = (res, ...reqData) => {
+  for (const data of reqData) {
+    if (!data) {
+      responseCode.failSyntax(res, "", "Missing or incorrect request data");
+      return false;
+    }
+  }
+  return true;
+};
+
+module.exports = { checkDataExist, checkReqData };
