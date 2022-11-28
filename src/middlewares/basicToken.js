@@ -7,6 +7,7 @@ const tokenControl = {
       algorithm: "HS256",
       expiresIn: "2d",
     });
+    return token;
   },
   check: (token) => {
     try {
@@ -21,6 +22,7 @@ const tokenControl = {
     const verifyToken = this.check(token);
     if (verifyToken.checkData) {
       next();
+      return;
     }
     responseCode.fail(res, "Token không hợp lệ", verifyToken.message);
   },
