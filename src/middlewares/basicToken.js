@@ -17,14 +17,18 @@ const tokenControl = {
       return { checkData: false, message: err.message };
     }
   },
-  verify: function (req, res, next) {
-    const { token } = req.headers;
-    const verifyToken = this.check(token);
-    if (verifyToken.checkData) {
-      next();
-      return;
+  verify: (req, res, next) => {
+    try {
+      const { authtoken } = req.headers;
+      const verifyToken = tokenControl.check(authtoken);
+      if (verifyToken.checkData) {
+        next();
+        return;
+      }
+      responseCode.unauthorized(res, "Token không hợp lệ", verifyToken.message);
+    } catch (err) {
+      responseCode.error(res, "Lỗi Backend");
     }
-    responseCode.fail(res, "Token không hợp lệ", verifyToken.message);
   },
 };
 

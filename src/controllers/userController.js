@@ -5,9 +5,6 @@ const models = initModels(sequelize);
 // import config
 const responseCode = require("../config/responses");
 
-// import middleware
-const tokenControl = require("../middlewares/basicToken");
-
 // import local utils
 const { checkDataExist, checkReqData } = require("../utils/utils");
 

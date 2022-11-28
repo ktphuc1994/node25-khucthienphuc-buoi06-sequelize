@@ -17,6 +17,12 @@ const responseCode = {
       content: data,
     });
   },
+  unauthorized: (res, data, message) => {
+    res.status(401).json({
+      message,
+      content: data,
+    });
+  },
   notFound: (res, data, message) => {
     res.status(404).json({
       message,

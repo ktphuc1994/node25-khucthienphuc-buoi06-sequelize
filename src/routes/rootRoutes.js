@@ -6,7 +6,23 @@ const restaurantRoute = require("./restaurantRoute");
 const userRoute = require("./userRoute");
 const orderRoute = require("./orderRoute");
 
-rootRoute.use("/restaurant", restaurantRoute);
+// import config
+const responseCode = require("../config/responses");
+
+// import middleware
+const tokenControl = require("../middlewares/basicToken");
+
+rootRoute.post("/newtoken", (req, res) => {
+  try {
+    const data = req.body;
+    const newToken = tokenControl.create(data);
+    responseCode.created(res, newToken, "Token created");
+  } catch (err) {
+    responseCode.error(res, "Lỗi Backend");
+  }
+});
+
+rootRoute.use("/restaurant", tokenControl.verify, restaurantRoute);
 rootRoute.use("/user", userRoute);
 rootRoute.use("/order", orderRoute);
 
